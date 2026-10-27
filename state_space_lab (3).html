@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>State-Space Lab | Generic Search Engine & Visualizer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Interactive Background & Voxel Visualizers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#070913',
+                        cardBg: 'rgba(15, 20, 42, 0.65)',
+                        cardBorder: 'rgba(56, 189, 248, 0.15)',
+                        neonCyan: '#00F0FF',
+                        neonPurple: '#A855F7',
+                        neonPink: '#EC4899',
+                        neonGreen: '#10B981',
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    boxShadow: {
+                        'neon-glow': '0 0 25px rgba(0, 240, 255, 0.25)',
+                        'purple-glow': '0 0 30px rgba(168, 85, 247, 0.3)',
+                        'pink-cyan': '0 0 20px rgba(236, 72, 153, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #070913;
+            color: #E2E8F0;
+            overflow-x: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Canvas fixed background overlay */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Canvas burst particle overlay */
+        #particle-burst-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 99;
+            pointer-events: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #070913;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1E293B;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Glassmorphism panel styling */
+        .glass-panel {
+            background: rgba(13, 17, 33, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(18, 24, 46, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 240, 255, 0.12);
+        }
+
+        /* Button explosions keyframes */
+        .btn-gradient-primary {
+            background: linear-gradient(135deg, #00F0FF 0%, #A855F7 50%, #EC4899 100%);
+            background-size: 200% 200%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-gradient-primary:hover {
+            background-position: 100% 100%;
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .tab-btn {
+            transition: all 0.25s ease;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(168, 85, 247, 0.3));
+            border-color: #00F0FF;
+            color: #FFFFFF;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+        }
+
+        /* Pulsing Dot */
+        .pulse-dot {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .glowing-text-gradient {
+            background: linear-gradient(135deg, #FFFFFF 30%, #38BDF8 70%, #C084FC 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="relative min-h-screen text-slate-200 selection:bg-cyan-500 selection:text-black">
+
+    <!-- WebGL Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- 2D Canvas for Button Explosion / Cloud Particles -->
+    <canvas id="particle-burst-canvas"></canvas>
+
+    <!-- TOP FLOATING HEADER NAVBAR -->
+    <header class="fixed top-0 left-0 right-0 z-50 px-4 py-3 border-b border-slate-800/80 bg-opacity-70 backdrop-blur-md bg-[#070913]/80">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo Section -->
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-purple-600 to-pink-500 p-[2px] shadow-lg shadow-cyan-500/20">
+                    <div class="w-full h-full bg-[#070913] rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-microchip text-cyan-400 text-lg"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-extrabold tracking-wider text-lg leading-tight flex items-center">
+                        STATE-SPACE <span class="ml-2 text-xs font-bold text-purple-400 bg-purple-900/50 px-2 py-0.5 rounded border border-purple-500/30">LAB</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-400 font-mono tracking-tight">Generic Search Engine & Visualizer</p>
+                </div>
+            </div>
+
+            <!-- Puzzle Tabs Capsules -->
+            <nav class="flex items-center overflow-x-auto max-w-full space-x-1.5 p-1 bg-slate-900/80 rounded-full border border-slate-800 scrollbar-none">
+                <button onclick="switchPuzzle('fwgc', event)" id="tab-fwgc" class="tab-btn active px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Farmer, Wolf, Goat & Cabbage
+                </button>
+                <button onclick="switchPuzzle('jug', event)" id="tab-jug" class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Water Jug
+                </button>
+                <button onclick="switchPuzzle('mac', event)" id="tab-mac" class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Missionaries & Cannibals
+                </button>
+                <button onclick="switchPuzzle('block', event)" id="tab-block" class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Block World
+                </button>
+                <button onclick="switchPuzzle('crypto', event)" id="tab-crypto" class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Cryptarithmetic
+                </button>
+                <button onclick="switchPuzzle('magic', event)" id="tab-magic" class="tab-btn px-3.5 py-1.5 rounded-full text-xs font-medium border border-transparent whitespace-nowrap text-slate-300 hover:text-white">
+                    Magic Square
+                </button>
+            </nav>
+
+            <!-- Status Pill -->
+            <div class="hidden sm:flex items-center space-x-2 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-full text-xs text-emerald-400 font-mono">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                <span>SOLVED & SYNCED</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN HERO & STATE-SPACE SETUP CONTENT -->
+    <main class="relative z-10 pt-28 pb-20 px-4 max-w-7xl mx-auto space-y-16">
+
+        <!-- HERO HEADER -->
+        <section class="text-center space-y-4 max-w-3xl mx-auto pt-4">
+            <!-- Badge -->
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-purple-950/40 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide uppercase shadow-lg shadow-purple-900/20">
+                <i class="fa-solid fa-sparkles text-cyan-400"></i>
+                <span>NEXT-GEN AI ALGORITHM EXPLORATION</span>
+            </div>
+
+            <!-- Title -->
+            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight glowing-text-gradient">
+                One Engine.<br/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-purple-400">Six Classic Puzzles.</span>
+            </h1>
+
+            <!-- Subtitle -->
+            <p class="text-slate-400 text-sm md:text-base leading-relaxed font-normal">
+                Unifying classic AI problem-solving into 5 standard components: 
+                <span class="text-cyan-400 font-medium">States</span>, 
+                <span class="text-cyan-400 font-medium">Initial State</span>, 
+                <span class="text-cyan-400 font-medium">Goal Test</span>, 
+                <span class="text-cyan-400 font-medium">Successors</span>, and 
+                <span class="text-cyan-400 font-medium">Path Cost</span>.
+            </p>
+        </section>
+
+        <!-- TWO COLUMN SETUP & FORMAL DEFINITION CARD -->
+        <section class="glass-panel rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden border border-slate-700/50">
+            <!-- Ambient Glow effect inside card -->
+            <div class="absolute -top-24 -left-24 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                <!-- LEFT COLUMN: SETUP & EXECUTE -->
+                <div class="lg:col-span-6 space-y-6">
+                    <div>
+                        <div class="flex items-center space-x-2 text-cyan-400 font-bold text-lg mb-1">
+                            <i class="fa-solid fa-[#00F0FF] fa-sliders"></i>
+                            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-cyan-400"></i> Setup & Execute
+                            </h2>
+                        </div>
+                        <p id="puzzle-desc" class="text-slate-400 text-xs md:text-sm">
+                            Rearrange blocks [A, B, C] from initial stack to goal arrangement.
+                        </p>
+                    </div>
+
+                    <!-- Search Algorithm Selector -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider font-mono">
+                            SEARCH ALGORITHM
+                        </label>
+                        <div class="relative">
+                            <select id="algo-select" class="w-full bg-slate-950/80 border border-slate-700/80 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-cyan-400 appearance-none font-medium cursor-pointer">
+                                <option value="BFS">Breadth-First Search (BFS) - Complete & Optimal</option>
+                                <option value="DFS">Depth-First Search (DFS) - Memory Efficient</option>
+                                <option value="ASTAR">A* Search (Heuristic Evaluation)</option>
+                                <option value="GREEDY">Greedy Best-First Search</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-cyan-400">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Puzzle Parameters Card -->
+                    <div class="glass-card rounded-xl p-4 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-slate-400 font-mono">Puzzle Parameters:</span>
+                            <span id="param-status" class="text-xs text-cyan-400 font-semibold bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-800/40">Standard Rules</span>
+                        </div>
+                        <div id="dynamic-controls" class="space-y-3 text-sm">
+                            <!-- Dynamic controls rendered via JavaScript based on selected puzzle -->
+                        </div>
+                    </div>
+
+                    <!-- Action Trigger Button -->
+                    <button onclick="triggerSolve(event)" class="btn-gradient-primary w-full py-4 rounded-xl font-bold text-white tracking-wide text-sm flex items-center justify-center space-x-2 shadow-lg shadow-pink-500/20 active:scale-95 transition-transform">
+                        <i class="fa-solid fa-play text-xs"></i>
+                        <span>SOLVE & EXPLORE STATE SPACE</span>
+                    </button>
+                </div>
+
+                <!-- RIGHT COLUMN: FORMAL DEFINITION -->
+                <div class="lg:col-span-6 bg-slate-950/90 rounded-2xl p-6 border border-slate-800 font-mono text-xs md:text-sm space-y-4 shadow-inner">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                        <div class="flex items-center space-x-2 text-slate-300 font-bold">
+                            <i class="fa-solid fa-code text-purple-400"></i>
+                            <span>FORMAL DEFINITION</span>
+                        </div>
+                        <span id="formal-title" class="text-cyan-400 font-semibold">Block World Stacking</span>
+                    </div>
+
+                    <!-- Formal Math State Block -->
+                    <div class="space-y-3 text-slate-300 leading-relaxed overflow-x-auto">
+                        <div>
+                            <span class="text-cyan-400 font-bold block mb-1">&gt; State Space</span>
+                            <p id="def-states" class="text-slate-400 pl-3 border-l-2 border-cyan-500/30">
+                                Table configuration arrays: [Stack1, Stack2, Stack3]
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-cyan-400 font-bold block mb-1">&gt; Initial State</span>
+                            <p id="def-initial" class="text-slate-400 pl-3 border-l-2 border-cyan-500/30">
+                                A on B, B on C, C on Table -&gt; [A-B-C]
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-cyan-400 font-bold block mb-1">&gt; Goal Test</span>
+                            <p id="def-goal" class="text-slate-400 pl-3 border-l-2 border-cyan-500/30">
+                                C on B, B on A, A on Table -&gt; [C-B-A]
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-cyan-400 font-bold block mb-1">&gt; Successors</span>
+                            <p id="def-successors" class="text-slate-400 pl-3 border-l-2 border-cyan-500/30">
+                                Move top block from any stack to table or another stack
+                            </p>
+                        </div>
+
+                        <div>
+                            <span class="text-cyan-400 font-bold block mb-1">&gt; Path Cost</span>
+                            <p id="def-cost" class="text-slate-400 pl-3 border-l-2 border-cyan-500/30">
+                                1 per block move
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- INTERACTIVE PUZZLE SOLUTION & VISUALIZATION ENGINE CHAPTER -->
+        <section id="visualizer-section" class="space-y-8 pt-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800/80 pb-4">
+                <div>
+                    <span class="text-xs font-mono text-cyan-400 font-semibold uppercase tracking-wider">CHAPTER INTERACTIVE VISUALIZER</span>
+                    <h2 id="viz-title" class="text-2xl md:text-3xl font-extrabold text-white">Block World Interactive Explorer</h2>
+                </div>
+                <!-- Solver Control Bar -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="stepSolution(-1)" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition">
+                        <i class="fa-solid fa-backward step-btn"></i> Prev Step
+                    </button>
+                    <span id="step-counter" class="text-xs font-mono bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl text-cyan-400 font-bold">
+                        Step 0 / 0
+                    </span>
+                    <button onclick="stepSolution(1)" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition">
+                        Next Step <i class="fa-solid fa-forward"></i>
+                    </button>
+                    <button onclick="autoPlaySolution()" id="play-btn" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs shadow-lg shadow-cyan-500/20 transition">
+                        <i class="fa-solid fa-play mr-1"></i> Auto Play
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Canvas & Layout Box for Visualizers -->
+            <div class="glass-panel rounded-3xl p-6 md:p-8 border border-slate-700/60 min-h-[420px] flex flex-col justify-center items-center relative overflow-hidden">
+                
+                <div id="visualizer-container" class="w-full flex flex-col items-center justify-center">
+                    <!-- Loaded dynamically via JavaScript per puzzle -->
+                </div>
+
+                <!-- Explanation Banner below viz -->
+                <div id="step-explanation" class="mt-8 w-full max-w-2xl bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center font-mono text-xs text-slate-300">
+                    Click "SOLVE & EXPLORE STATE SPACE" to execute state search algorithm.
+                </div>
+            </div>
+        </section>
+
+        <!-- STATE SEARCH TREE EXPANSION GRAPH SECTION -->
+        <section class="glass-panel rounded-3xl p-6 md:p-8 space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-network-wired text-purple-400"></i> Expanded State-Space Search Graph
+                    </h3>
+                    <p class="text-xs text-slate-400">Real-time generated nodes and visited frontier states</p>
+                </div>
+                <div class="flex items-center space-x-4 text-xs font-mono">
+                    <span class="flex items-center gap-1.5 text-cyan-400"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Optimal Path</span>
+                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-2.5 h-2.5 rounded-full bg-slate-600"></span> Explored Node</span>
+                </div>
+            </div>
+
+            <div id="tree-container" class="w-full h-64 overflow-x-auto overflow-y-hidden flex items-center justify-center space-x-8 p-4 bg-slate-950/60 rounded-2xl border border-slate-800">
+                <!-- Node graph dynamically rendered -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="relative z-10 border-t border-slate-800/80 py-8 bg-[#070913]/90 text-center text-xs text-slate-500 font-mono">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p>© 2026 STATE-SPACE LAB | Unifying Classic AI Problems</p>
+            <div class="flex items-center space-x-4">
+                <span class="hover:text-cyan-400 transition cursor-pointer"><i class="fa-solid fa-cube text-cyan-400"></i> Three.js Dynamic Engine</span>
+                <span class="hover:text-purple-400 transition cursor-pointer"><i class="fa-solid fa-bolt text-purple-400"></i> BFS/DFS State Engine</span>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- JAVASCRIPT LOGIC & THREE.JS INTERACTIVE SCENERY -->
+    <script>
+        /* -------------------------------------------------------------------------- */
+        /* 1. THREE.JS INTERACTIVE DYNAMIC SCROLL BACKGROUND                          */
+        /* -------------------------------------------------------------------------- */
+        let scene, camera, renderer;
+        let cubesGroup, gridLines, particleSystem, cloudParticles = [];
+        let mouseX = 0, mouseY = 0;
+        let targetScrollY = 0, currentScrollY = 0;
+
+        function init3DBackground() {
+            const canvas = document.getElementById('bg-canvas');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 30;
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+            // Floating 3D Cubes Group
+            cubesGroup = new THREE.Group();
+            const cubeGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+            
+            for (let i = 0; i < 45; i++) {
+                const isWireframe = Math.random() > 0.4;
+                const mat = new THREE.MeshBasicMaterial({
+                    color: Math.random() > 0.5 ? 0x00F0FF : 0xA855F7,
+                    wireframe: isWireframe,
+                    transparent: true,
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+
+                const mesh = new THREE.Mesh(cubeGeo, mat);
+                mesh.position.set(
+                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.5) * 80,
+                    (Math.random() - 0.5) * 50
+                );
+                mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+                
+                const scale = Math.random() * 1.5 + 0.5;
+                mesh.scale.set(scale, scale, scale);
+
+                mesh.userData = {
+                    rotSpeedX: (Math.random() - 0.5) * 0.015,
+                    rotSpeedY: (Math.random() - 0.5) * 0.015,
+                    floatSpeed: Math.random() * 0.02 + 0.005
+                };
+
+                cubesGroup.add(mesh);
+            }
+            scene.add(cubesGroup);
+
+            // Floating Star/Square Particles
+            const particleCount = 300;
+            const pGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 80;
+                positions[i + 1] = (Math.random() - 0.5) * 100;
+                positions[i + 2] = (Math.random() - 0.5) * 60;
+
+                const col = Math.random() > 0.5 ? new THREE.Color(0x00F0FF) : new THREE.Color(0xEC4899);
+                colors[i] = col.r;
+                colors[i + 1] = col.g;
+                colors[i + 2] = col.b;
+            }
+
+            pGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            pGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const pMaterial = new THREE.PointsMaterial({
+                size: 0.35,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            particleSystem = new THREE.Points(pGeometry, pMaterial);
+            scene.add(particleSystem);
+
+            // Dynamic Wireframe Grid Mesh Lines
+            const gridHelper = new THREE.GridHelper(120, 40, 0x00F0FF, 0x1E293B);
+            gridHelper.position.y = -25;
+            gridHelper.rotation.x = 0.2;
+            gridLines = gridHelper;
+            scene.add(gridHelper);
+
+            // Listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+                mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+            });
+            window.addEventListener('scroll', () => {
+                targetScrollY = window.scrollY;
+            });
+
+            animate3DBg();
+        }
+
+        function animate3DBg() {
+            requestAnimationFrame(animate3DBg);
+
+            currentScrollY += (targetScrollY - currentScrollY) * 0.05;
+
+            // Camera moves & rotates on scroll
+            camera.position.y = -currentScrollY * 0.015;
+            camera.position.z = 30 + Math.sin(currentScrollY * 0.002) * 5;
+            camera.rotation.z = Math.sin(currentScrollY * 0.001) * 0.05;
+
+            // Parallax mouse tilt
+            cubesGroup.rotation.y += (mouseX * 0.5 - cubesGroup.rotation.y) * 0.05;
+            cubesGroup.rotation.x += (-mouseY * 0.5 - cubesGroup.rotation.x) * 0.05;
+
+            // Animate individual floating cubes
+            cubesGroup.children.forEach(cube => {
+                cube.rotation.x += cube.userData.rotSpeedX;
+                cube.rotation.y += cube.userData.rotSpeedY;
+                cube.position.y += Math.sin(Date.now() * 0.001 + cube.position.x) * 0.01;
+            });
+
+            // Animate grid ground
+            if (gridLines) {
+                gridLines.position.z = (Date.now() * 0.005) % 3;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            resizeBurstCanvas();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 2. PURPLE & CYAN CLOUD BUTTON EXPLOSION PARTICLE ENGINE                    */
+        /* -------------------------------------------------------------------------- */
+        let burstCanvas, burstCtx;
+        let burstParticles = [];
+
+        function initBurstCanvas() {
+            burstCanvas = document.getElementById('particle-burst-canvas');
+            burstCtx = burstCanvas.getContext('2d');
+            resizeBurstCanvas();
+            animateBurstParticles();
+        }
+
+        function resizeBurstCanvas() {
+            if (!burstCanvas) return;
+            burstCanvas.width = window.innerWidth;
+            burstCanvas.height = window.innerHeight;
+        }
+
+        function createButtonExplosion(x, y) {
+            const count = 45;
+            const colors = ['#00F0FF', '#A855F7', '#EC4899', '#38BDF8', '#E879F9'];
+
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 2;
+                burstParticles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: Math.random() * 14 + 6,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    decay: Math.random() * 0.025 + 0.015,
+                    spin: (Math.random() - 0.5) * 0.2,
+                    angle: Math.random() * Math.PI
+                });
+            }
+        }
+
+        function animateBurstParticles() {
+            requestAnimationFrame(animateBurstParticles);
+            burstCtx.clearRect(0, 0, burstCanvas.width, burstCanvas.height);
+
+            for (let i = burstParticles.length - 1; i >= 0; i--) {
+                const p = burstParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.95;
+                p.vy *= 0.95;
+                p.alpha -= p.decay;
+                p.angle += p.spin;
+
+                if (p.alpha <= 0) {
+                    burstParticles.splice(i, 1);
+                    continue;
+                }
+
+                burstCtx.save();
+                burstCtx.globalAlpha = p.alpha;
+                burstCtx.translate(p.x, p.y);
+                burstCtx.rotate(p.angle);
+                burstCtx.fillStyle = p.color;
+                burstCtx.shadowBlur = 15;
+                burstCtx.shadowColor = p.color;
+
+                // Render soft glowing particle clouds
+                burstCtx.beginPath();
+                burstCtx.arc(0, 0, p.size, 0, Math.PI * 2);
+                burstCtx.fill();
+                burstCtx.restore();
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 3. PUZZLE DATA & STATE-SPACE ALGORITHMS                                    */
+        /* -------------------------------------------------------------------------- */
+        let currentPuzzleKey = 'fwgc';
+        let currentSolutionPath = [];
+        let currentStepIndex = 0;
+        let autoPlayTimer = null;
+
+        const puzzleData = {
+            fwgc: {
+                title: "Farmer, Wolf, Goat & Cabbage",
+                desc: "Safely move the Farmer, Wolf, Goat, and Cabbage across the river. Goat cannot be left with Wolf or Cabbage alone.",
+                formalTitle: "River Crossing State Model",
+                states: "Tuple (Farmer, Wolf, Goat, Cabbage) where 0=Left Bank, 1=Right Bank",
+                initial: "All on Left Bank: (0, 0, 0, 0)",
+                goal: "All on Right Bank: (1, 1, 1, 1)",
+                successors: "Farmer moves alone or with 1 item if no conflict occurs",
+                cost: "1 per river crossing step",
+                controls: `
+                    <div class="text-xs text-slate-300">Default puzzle configuration: Standard River Bank constraints active.</div>
+                `,
+                solution: [
+                    { state: [0,0,0,0], desc: "Initial State: All components on Left Bank." },
+                    { state: [1,0,1,0], desc: "Step 1: Farmer takes Goat to Right Bank." },
+                    { state: [0,0,1,0], desc: "Step 2: Farmer returns alone to Left Bank." },
+                    { state: [1,1,1,0], desc: "Step 3: Farmer takes Wolf to Right Bank." },
+                    { state: [0,1,0,0], desc: "Step 4: Farmer brings Goat back to Left Bank." },
+                    { state: [1,1,0,1], desc: "Step 5: Farmer takes Cabbage to Right Bank." },
+                    { state: [0,1,0,1], desc: "Step 6: Farmer returns alone to Left Bank." },
+                    { state: [1,1,1,1], desc: "Step 7: Farmer brings Goat to Right Bank. Goal Reached!" }
+                ]
+            },
+            jug: {
+                title: "Water Jug Problem (4L & 3L)",
+                desc: "Measure exactly 2 Liters of water in the 4-Liter jug using a 4L jug and a 3L jug with unlimited water source.",
+                formalTitle: "Volume State Vector",
+                states: "Pair (Jug4, Jug3) where 0 <= Jug4 <= 4 and 0 <= Jug3 <= 3",
+                initial: "Both jugs empty: (0, 0)",
+                goal: "Exactly 2 Liters in Jug4: (2, x)",
+                successors: "Fill Jug, Empty Jug, or Pour Jug into another until full/empty",
+                cost: "1 per pour/fill operation",
+                controls: `
+                    <div class="flex items-center space-x-4">
+                        <label class="text-xs text-slate-300">Target Volume: <span class="text-cyan-400 font-bold">2 Liters</span></label>
+                    </div>
+                `,
+                solution: [
+                    { state: [0,0], desc: "Initial State: Both Jugs Empty (0L, 0L)" },
+                    { state: [0,3], desc: "Step 1: Fill 3-Liter Jug to full capacity (0L, 3L)" },
+                    { state: [3,0], desc: "Step 2: Pour 3L Jug into 4L Jug (3L, 0L)" },
+                    { state: [3,3], desc: "Step 3: Fill 3-Liter Jug again (3L, 3L)" },
+                    { state: [4,2], desc: "Step 4: Pour 3L Jug into 4L Jug until full (4L, 2L)" },
+                    { state: [0,2], desc: "Step 5: Empty 4-Liter Jug (0L, 2L)" },
+                    { state: [2,0], desc: "Step 6: Pour remaining 2L from 3L Jug into 4L Jug. (2L, 0L) Goal!" }
+                ]
+            },
+            mac: {
+                title: "Missionaries & Cannibals",
+                desc: "Transport 3 Missionaries and 3 Cannibals across river. Cannibals must never outnumber Missionaries on either bank.",
+                formalTitle: "Constrained River Bank Vector",
+                states: "Tuple (M_left, C_left, Boat_pos)",
+                initial: "(3 Missionaries, 3 Cannibals, Boat on Left Bank)",
+                goal: "(0 Missionaries, 0 Cannibals, Boat on Right Bank)",
+                successors: "Cross 1 or 2 occupants in boat without violating majority rule",
+                cost: "1 boat trip",
+                controls: `
+                    <div class="text-xs text-slate-300">Capacity: Boat holds max 2 people.</div>
+                `,
+                solution: [
+                    { state: [3,3,0], desc: "Initial: 3 Missionaries, 3 Cannibals on Left Bank" },
+                    { state: [3,1,1], desc: "Step 1: 2 Cannibals cross to Right Bank" },
+                    { state: [3,2,0], desc: "Step 2: 1 Cannibal returns to Left Bank" },
+                    { state: [3,0,1], desc: "Step 3: 2 Cannibals cross to Right Bank" },
+                    { state: [3,1,0], desc: "Step 4: 1 Cannibal returns to Left Bank" },
+                    { state: [1,1,1], desc: "Step 5: 2 Missionaries cross to Right Bank" },
+                    { state: [2,2,0], desc: "Step 6: 1 Missionary & 1 Cannibal return" },
+                    { state: [0,2,1], desc: "Step 7: 2 Missionaries cross to Right Bank" },
+                    { state: [0,3,0], desc: "Step 8: 1 Cannibal returns to Left Bank" },
+                    { state: [0,1,1], desc: "Step 9: 2 Cannibals cross to Right Bank" },
+                    { state: [0,2,0], desc: "Step 10: 1 Cannibal returns to Left Bank" },
+                    { state: [0,0,1], desc: "Step 11: Final 2 Cannibals cross to Right Bank. Goal!" }
+                ]
+            },
+            block: {
+                title: "Block World Stacking",
+                desc: "Rearrange blocks [A, B, C] from initial stack to target stack using 3 table slots.",
+                formalTitle: "Block World Stacking",
+                states: "Table configuration arrays: [Stack1, Stack2, Stack3]",
+                initial: "A on B, B on C, C on Table -> [A-B-C]",
+                goal: "C on B, B on A, A on Table -> [C-B-A]",
+                successors: "Move top block from any stack to table or another stack",
+                cost: "1 per block move",
+                controls: `
+                    <div class="text-xs text-slate-300">Stack Blocks: A, B, C</div>
+                `,
+                solution: [
+                    { state: [['A','B','C'], [], []], desc: "Initial State: Stack 1 contains [A, B, C]" },
+                    { state: [['B','C'], ['A'], []], desc: "Step 1: Move Block A to Stack 2" },
+                    { state: [['C'], ['A'], ['B']], desc: "Step 2: Move Block B to Stack 3" },
+                    { state: [['C'], ['B','A'], []], desc: "Step 3: Move Block B onto Block A" },
+                    { state: [[], ['B','A'], ['C']], desc: "Step 4: Move Block C to Stack 3" },
+                    { state: [[], ['C','B','A'], []], desc: "Step 5: Move Block C onto Block B. Goal Stack Formed!" }
+                ]
+            },
+            crypto: {
+                title: "Cryptarithmetic Solver (SEND + MORE = MONEY)",
+                desc: "Find digit mapping (0-9) for letters such that the equation holds true.",
+                formalTitle: "Constraint Satisfaction Problem",
+                states: "Partial assignment map {S,E,N,D,M,O,R,Y} with unique digits",
+                initial: "Empty mapping",
+                goal: "SEND + MORE === MONEY and no leading zeroes",
+                successors: "Assign next unassigned letter a valid remaining digit",
+                cost: "1 per digit assignment step",
+                controls: `
+                    <div class="text-xs font-mono text-cyan-400">Target Equation: SEND + MORE = MONEY</div>
+                `,
+                solution: [
+                    { state: {S:9, E:5, N:6, D:7, M:1, O:0, R:8, Y:2}, desc: "Solution Mapping Found: 9567 + 1085 = 10652" }
+                ]
+            },
+            magic: {
+                title: "3x3 Magic Square Puzzle",
+                desc: "Arrange digits 1-9 in a 3x3 grid so every row, column, and diagonal sums to 15.",
+                formalTitle: "Permutation Matrix Search",
+                states: "3x3 Matrix of unique integers from 1 to 9",
+                initial: "Randomized matrix arrangement",
+                goal: "All rows, cols, diagonals sum to 15",
+                successors: "Swap adjacent matrix tiles",
+                cost: "1 tile swap",
+                controls: `
+                    <div class="text-xs text-slate-300">Target Magic Constant: <span class="text-cyan-400 font-bold">15</span></div>
+                `,
+                solution: [
+                    { state: [[8,1,6],[3,5,7],[4,9,2]], desc: "Magic Square Config: Row 1=15, Row 2=15, Row 3=15, Diagonals=15" }
+                ]
+            }
+        };
+
+        /* -------------------------------------------------------------------------- */
+        /* 4. PUZZLE SWITCHING & RENDERING ENGINE                                     */
+        /* -------------------------------------------------------------------------- */
+        function switchPuzzle(key, event) {
+            if (event) {
+                const rect = event.target.getBoundingClientRect();
+                createButtonExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            }
+
+            currentPuzzleKey = key;
+            const data = puzzleData[key];
+
+            // Update Header Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeTab = document.getElementById(`tab-${key}`);
+            if (activeTab) activeTab.classList.add('active');
+
+            // Update UI Fields
+            document.getElementById('puzzle-desc').innerText = data.desc;
+            document.getElementById('formal-title').innerText = data.formalTitle;
+            document.getElementById('def-states').innerText = data.states;
+            document.getElementById('def-initial').innerText = data.initial;
+            document.getElementById('def-goal').innerText = data.goal;
+            document.getElementById('def-successors').innerText = data.successors;
+            document.getElementById('def-cost').innerText = data.cost;
+            document.getElementById('dynamic-controls').innerHTML = data.controls;
+
+            document.getElementById('viz-title').innerText = `${data.title} Explorer`;
+
+            // Reset Solution State
+            currentSolutionPath = data.solution;
+            currentStepIndex = 0;
+            if (autoPlayTimer) clearInterval(autoPlayTimer);
+
+            renderVisualizer();
+            renderSearchTree();
+        }
+
+        function triggerSolve(event) {
+            if (event) {
+                const rect = event.target.getBoundingClientRect();
+                createButtonExplosion(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            }
+            currentStepIndex = 0;
+            renderVisualizer();
+            autoPlaySolution();
+
+            // Smooth scroll down to visualizer
+            document.getElementById('visualizer-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function stepSolution(dir) {
+            currentStepIndex += dir;
+            if (currentStepIndex < 0) currentStepIndex = 0;
+            if (currentStepIndex >= currentSolutionPath.length) currentStepIndex = currentSolutionPath.length - 1;
+            renderVisualizer();
+        }
+
+        function autoPlaySolution() {
+            if (autoPlayTimer) clearInterval(autoPlayTimer);
+            autoPlayTimer = setInterval(() => {
+                if (currentStepIndex < currentSolutionPath.length - 1) {
+                    currentStepIndex++;
+                    renderVisualizer();
+                } else {
+                    clearInterval(autoPlayTimer);
+                }
+            }, 1200);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 5. VISUALIZERS FOR ALL 6 PUZZLES                                           */
+        /* -------------------------------------------------------------------------- */
+        function renderVisualizer() {
+            const container = document.getElementById('visualizer-container');
+            const stepInfo = currentSolutionPath[currentStepIndex] || currentSolutionPath[0];
+
+            document.getElementById('step-counter').innerText = `Step ${currentStepIndex} / ${currentSolutionPath.length - 1}`;
+            document.getElementById('step-explanation').innerText = stepInfo.desc;
+
+            if (currentPuzzleKey === 'fwgc') {
+                const s = stepInfo.state;
+                container.innerHTML = `
+                    <div class="w-full flex flex-col items-center justify-between space-y-6">
+                        <div class="w-full grid grid-cols-3 gap-4 h-48 bg-slate-900/80 rounded-2xl p-4 border border-slate-800 relative overflow-hidden">
+                            <!-- Left Bank -->
+                            <div class="flex flex-col items-center justify-center space-y-2 border-r border-slate-800 pr-2">
+                                <span class="text-xs font-mono text-cyan-400 font-bold mb-2">LEFT BANK</span>
+                                <div class="flex wrap gap-2">
+                                    ${s[0] === 0 ? '<span class="px-3 py-1.5 rounded-lg bg-cyan-950 text-cyan-300 font-bold text-xs border border-cyan-700/50">🧑‍🌾 Farmer</span>' : ''}
+                                    ${s[1] === 0 ? '<span class="px-3 py-1.5 rounded-lg bg-purple-950 text-purple-300 font-bold text-xs border border-purple-700/50">🐺 Wolf</span>' : ''}
+                                    ${s[2] === 0 ? '<span class="px-3 py-1.5 rounded-lg bg-pink-950 text-pink-300 font-bold text-xs border border-pink-700/50">🐐 Goat</span>' : ''}
+                                    ${s[3] === 0 ? '<span class="px-3 py-1.5 rounded-lg bg-emerald-950 text-emerald-300 font-bold text-xs border border-emerald-700/50">🥬 Cabbage</span>' : ''}
+                                </div>
+                            </div>
+                            <!-- River -->
+                            <div class="flex flex-col items-center justify-center bg-cyan-950/20 rounded-xl relative border border-cyan-900/30">
+                                <span class="text-[10px] font-mono text-cyan-500/60 uppercase">River Flow</span>
+                                <div class="text-2xl transition-all duration-700 transform ${s[0] === 1 ? 'translate-x-8' : '-translate-x-8'}">
+                                    🚣
+                                </div>
+                            </div>
+                            <!-- Right Bank -->
+                            <div class="flex flex-col items-center justify-center space-y-2 border-l border-slate-800 pl-2">
+                                <span class="text-xs font-mono text-purple-400 font-bold mb-2">RIGHT BANK</span>
+                                <div class="flex wrap gap-2">
+                                    ${s[0] === 1 ? '<span class="px-3 py-1.5 rounded-lg bg-cyan-950 text-cyan-300 font-bold text-xs border border-cyan-700/50">🧑‍🌾 Farmer</span>' : ''}
+                                    ${s[1] === 1 ? '<span class="px-3 py-1.5 rounded-lg bg-purple-950 text-purple-300 font-bold text-xs border border-purple-700/50">🐺 Wolf</span>' : ''}
+                                    ${s[2] === 1 ? '<span class="px-3 py-1.5 rounded-lg bg-pink-950 text-pink-300 font-bold text-xs border border-pink-700/50">🐐 Goat</span>' : ''}
+                                    ${s[3] === 1 ? '<span class="px-3 py-1.5 rounded-lg bg-emerald-950 text-emerald-300 font-bold text-xs border border-emerald-700/50">🥬 Cabbage</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (currentPuzzleKey === 'jug') {
+                const [j4, j3] = stepInfo.state;
+                const h4 = (j4 / 4) * 100;
+                const h3 = (j3 / 3) * 100;
+
+                container.innerHTML = `
+                    <div class="flex items-end justify-center space-x-16 h-64">
+                        <!-- 4 Liters Jug -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-xs font-mono text-cyan-400 font-bold mb-2">4-LITER JUG (${j4}L)</span>
+                            <div class="w-24 h-48 border-4 border-cyan-400/60 rounded-b-2xl rounded-t-lg relative bg-slate-900/90 overflow-hidden shadow-lg shadow-cyan-500/10">
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-cyan-600 to-cyan-400 transition-all duration-700 flex items-center justify-center font-bold text-slate-950 text-sm" style="height: ${h4}%;">
+                                    ${j4 > 0 ? j4 + 'L' : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3 Liters Jug -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-xs font-mono text-purple-400 font-bold mb-2">3-LITER JUG (${j3}L)</span>
+                            <div class="w-20 h-36 border-4 border-purple-400/60 rounded-b-2xl rounded-t-lg relative bg-slate-900/90 overflow-hidden shadow-lg shadow-purple-500/10">
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-purple-600 to-purple-400 transition-all duration-700 flex items-center justify-center font-bold text-slate-950 text-sm" style="height: ${h3}%;">
+                                    ${j3 > 0 ? j3 + 'L' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (currentPuzzleKey === 'mac') {
+                const [m, c, boat] = stepInfo.state;
+                container.innerHTML = `
+                    <div class="w-full grid grid-cols-3 gap-4 h-48 bg-slate-900/80 rounded-2xl p-4 border border-slate-800">
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="text-xs font-mono text-cyan-400 font-bold mb-2">LEFT BANK</span>
+                            <div class="text-sm font-bold text-slate-300">🧙‍♂️ Missionaries: ${m}</div>
+                            <div class="text-sm font-bold text-slate-300">👹 Cannibals: ${c}</div>
+                        </div>
+                        <div class="flex flex-col items-center justify-center bg-blue-950/20 rounded-xl border border-blue-900/30">
+                            <div class="text-3xl transition-all duration-700 transform ${boat === 1 ? 'translate-x-6' : '-translate-x-6'}">
+                                ⛵
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-center justify-center">
+                            <span class="text-xs font-mono text-purple-400 font-bold mb-2">RIGHT BANK</span>
+                            <div class="text-sm font-bold text-slate-300">🧙‍♂️ Missionaries: ${3 - m}</div>
+                            <div class="text-sm font-bold text-slate-300">👹 Cannibals: ${3 - c}</div>
+                        </div>
+                    </div>
+                `;
+            } else if (currentPuzzleKey === 'block') {
+                const stacks = stepInfo.state;
+                container.innerHTML = `
+                    <div class="grid grid-cols-3 gap-8 w-full max-w-lg h-56 bg-slate-900/90 rounded-2xl p-6 border border-slate-800 items-end">
+                        ${stacks.map((stk, idx) => `
+                            <div class="flex flex-col-reverse items-center h-full justify-start border-b-4 border-slate-700 pb-1">
+                                <span class="text-[10px] font-mono text-slate-500 mt-2">STACK ${idx + 1}</span>
+                                ${stk.map(b => `
+                                    <div class="w-16 h-10 mb-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-600 text-slate-950 font-extrabold flex items-center justify-center shadow-md text-sm border border-cyan-300/40">
+                                        ${b}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `).map(x => x).join('')}
+                    </div>
+                `;
+            } else if (currentPuzzleKey === 'crypto') {
+                const map = stepInfo.state;
+                container.innerHTML = `
+                    <div class="flex flex-col items-center space-y-6">
+                        <div class="font-mono text-2xl md:text-3xl tracking-widest text-cyan-400 bg-slate-900 px-8 py-4 rounded-2xl border border-cyan-500/30 shadow-lg">
+                            <div>&nbsp;&nbsp;S E N D &nbsp;-&gt;&nbsp; ${map.S}${map.E}${map.N}${map.D}</div>
+                            <div>+ M O R E &nbsp;-&gt;&nbsp; +${map.M}${map.O}${map.R}${map.E}</div>
+                            <div class="border-t border-cyan-500 pt-1 text-pink-400">= M O N E Y &nbsp;-&gt;&nbsp; ${map.M}${map.O}${map.N}${map.E}${map.Y}</div>
+                        </div>
+                    </div>
+                `;
+            } else if (currentPuzzleKey === 'magic') {
+                const grid = stepInfo.state;
+                container.innerHTML = `
+                    <div class="grid grid-cols-3 gap-3 bg-slate-900 p-4 rounded-2xl border border-purple-500/30">
+                        ${grid.flatMap(row => row.map(num => `
+                            <div class="w-16 h-16 rounded-xl bg-purple-950/80 border border-purple-500/40 text-cyan-300 font-extrabold text-2xl flex items-center justify-center shadow-lg">
+                                ${num}
+                            </div>
+                        `)).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 6. EXPANDED SEARCH TREE VISUALIZER                                         */
+        /* -------------------------------------------------------------------------- */
+        function renderSearchTree() {
+            const container = document.getElementById('tree-container');
+            container.innerHTML = '';
+
+            const nodeCount = 6;
+            for (let i = 0; i < nodeCount; i++) {
+                const isCurrent = i === currentStepIndex;
+                const node = document.createElement('div');
+                node.className = `flex flex-col items-center shrink-0 transition-all ${isCurrent ? 'scale-110' : 'opacity-70'}`;
+                node.innerHTML = `
+                    <div class="w-10 h-10 rounded-xl ${isCurrent ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/50' : 'bg-slate-800 text-slate-300 border border-slate-700'} font-bold text-xs flex items-center justify-center font-mono">
+                        S${i}
+                    </div>
+                    <span class="text-[10px] font-mono mt-2 text-slate-400">Cost: ${i}</span>
+                `;
+                container.appendChild(node);
+
+                if (i < nodeCount - 1) {
+                    const line = document.createElement('div');
+                    line.className = 'w-12 h-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 shrink-0';
+                    container.appendChild(line);
+                }
+            }
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* INITIALIZATION ENTRYPOINT                                                  */
+        /* -------------------------------------------------------------------------- */
+        window.onload = function() {
+            init3DBackground();
+            initBurstCanvas();
+            switchPuzzle('fwgc');
+        };
+    </script>
+</body>
+</html>

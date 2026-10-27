@@ -1,0 +1,189 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>State-Space Lab</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--ink:#e9eefb;--mut:#9aa6c0;--line:rgba(255,255,255,.1);--acc:#5ee7ff;--hi:rgba(160,102,245,.24);--bad:#ff7a9c;--mono:'JetBrains Mono',ui-monospace,Menlo,monospace;--bg:#05070f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:#05070f;color:var(--ink);font:16px/1.55 'Plus Jakarta Sans',system-ui,sans-serif}
+.floor{position:fixed;left:-25%;right:-25%;bottom:-8vh;height:46vh;z-index:-2;background-image:linear-gradient(rgba(94,231,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(94,231,255,.16) 1px,transparent 1px);background-size:64px 64px;transform:perspective(420px) rotateX(64deg);transform-origin:bottom;-webkit-mask-image:linear-gradient(transparent,#000 75%);mask-image:linear-gradient(transparent,#000 75%);pointer-events:none}
+#bg,#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}#bg{z-index:-1}#fx{z-index:60}
+#orb{position:fixed;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;z-index:55;pointer-events:none;opacity:0;background:radial-gradient(circle at 38% 35%,#d9b8ff 0,#a24dff 38%,rgba(127,0,255,.55) 62%,rgba(127,0,255,0) 100%);box-shadow:0 0 22px 8px rgba(127,0,255,.5),0 0 60px 22px rgba(127,0,255,.25);will-change:transform;transition:opacity .3s}#orb.on{opacity:.75}@media(hover:none){#orb{display:none}}
+.top{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:14px clamp(14px,4vw,40px);background:rgba(5,7,15,.93);border-bottom:1px solid var(--line)}
+.brand{display:flex;gap:14px;align-items:center}.logo{width:52px;height:52px;border-radius:14px;border:2px solid transparent;background:linear-gradient(#0a0d1c,#0a0d1c) padding-box,linear-gradient(135deg,#5ee7ff,#a066f5) border-box;display:grid;place-items:center;box-shadow:0 0 18px rgba(160,102,245,.45)}
+.bt{font:800 26px/1 'Plus Jakarta Sans';letter-spacing:.02em}.lab{font:600 15px var(--mono);color:#b9a0ff;border:1px solid rgba(160,102,245,.6);background:rgba(160,102,245,.15);border-radius:6px;padding:2px 9px;margin-left:8px}.bs{font:13px var(--mono);color:var(--mut);letter-spacing:.06em;margin-top:5px}
+#tabs{display:flex;gap:4px;padding:6px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.03);overflow-x:auto;max-width:100%}
+#tabs button{border:1.5px solid transparent;background:none;color:#dfe6f7;padding:9px 18px;border-radius:999px;font:600 15px 'Plus Jakarta Sans';white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s}
+#tabs button:hover{background:rgba(160,102,245,.2)}#tabs button.on{border-color:#7fb7ff;background:rgba(94,231,255,.1);color:#fff;box-shadow:0 0 14px rgba(94,231,255,.25)}
+.stat{margin-left:auto;display:flex;align-items:center;gap:9px;padding:9px 18px;border:1px solid rgba(52,211,153,.5);border-radius:999px;background:rgba(52,211,153,.08);font:600 15px var(--mono);color:#4ade9b;letter-spacing:.06em}.stat i{width:10px;height:10px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}.stat.warn{color:#fbbf24;border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08)}.stat.bad{color:var(--bad);border-color:rgba(255,122,156,.5);background:rgba(255,122,156,.08)}
+@media(max-width:1180px){#tabs{order:3;width:100%}}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 60px;position:relative}
+.hero{text-align:center;padding:clamp(54px,9vw,96px) 0 clamp(40px,6vw,64px)}
+.pill{display:inline-block;padding:9px 24px;border:1px solid rgba(160,102,245,.6);border-radius:999px;background:rgba(160,102,245,.15);font-weight:600;font-size:14px;letter-spacing:.03em;color:#d3c2ff}
+h1{font:800 clamp(44px,9vw,100px)/1.02 'Plus Jakarta Sans',sans-serif;letter-spacing:-.045em;margin:26px 0 24px}h1 span{display:block;width:fit-content;margin:0 auto;-webkit-background-clip:text;background-clip:text;color:transparent}
+.l1{background-image:linear-gradient(90deg,#fff 30%,#7fdcff)}.l2{background-image:linear-gradient(90deg,#4de8ff,#a066f5)}.d{font-style:normal;-webkit-text-fill-color:#5ee7ff}.l2 .d{-webkit-text-fill-color:#a066f5}
+.hero p{max-width:760px;margin:0 auto;color:#aeb8d0;font-size:clamp(16px,2.2vw,21px)}.hero b{color:#4fe3d0;font-weight:500}
+.panel,.card{background:linear-gradient(180deg,rgba(30,26,64,.5),rgba(9,12,28,.88));border:1px solid rgba(255,255,255,.09);border-radius:28px;padding:clamp(18px,3.5vw,38px);margin-bottom:22px;min-width:0;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.panel{display:grid;gap:28px}@media(min-width:900px){.panel{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+h2{font:700 30px 'Plus Jakarta Sans';letter-spacing:-.01em;margin:0 0 10px;display:flex;gap:10px;align-items:center}.card h2{font-size:23px;margin-bottom:16px}.ic2{color:var(--acc)}
+.desc{color:var(--mut);font-size:18px;margin:0 0 26px}.lbl{font:600 15px var(--mono);letter-spacing:.14em;color:#c3cde2;margin-bottom:10px;text-transform:uppercase}
+button,select,input{font:inherit;color:var(--ink)}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#algo{width:100%;appearance:none;-webkit-appearance:none;padding:18px 54px 18px 22px;border:1px solid #38d9ef;border-radius:16px;background:#060913 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10' fill='none' stroke='%235ee7ff' stroke-width='2.4'%3E%3Cpath d='M2 2l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 22px center;font-weight:500;font-size:18px;margin-bottom:24px}
+.pbox{border:1px solid var(--line);border-radius:18px;padding:20px 22px;background:rgba(255,255,255,.025);margin-bottom:24px}.ph{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;font:15px var(--mono);color:var(--mut)}
+.badge{font:600 15px 'Plus Jakarta Sans';color:#5ee7ff;border:1px solid rgba(94,231,255,.3);background:rgba(94,231,255,.1);border-radius:8px;padding:6px 14px}
+.go{width:100%;border:0;border-radius:16px;padding:20px;font:800 19px 'Plus Jakarta Sans';color:#fff;cursor:pointer;background:linear-gradient(90deg,#6ee7ff,#a066f5);box-shadow:0 10px 36px rgba(110,160,255,.35)}.go:hover{filter:brightness(1.1)}
+.fd{border:1px solid var(--line);border-radius:22px;padding:26px;background:rgba(4,6,16,.72);min-width:0}.fh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:20px;font:600 17px var(--mono);letter-spacing:.04em}.fh b{color:var(--acc);font-size:16px}.fh em{font-style:normal;color:#a066f5;margin-right:8px}
+.de{margin-bottom:18px}.de h4{margin:0 0 8px;font:700 19px var(--mono);color:var(--acc)}.de p{margin:0;padding-left:14px;border-left:2px solid rgba(255,255,255,.14);font:400 15.5px/1.7 var(--mono);color:#cdd6ea}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:12px}label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px}
+input,select{padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#060913;min-width:90px;font-family:var(--mono)}
+.btn{border:1px solid var(--line);background:rgba(10,17,23,.6);border-radius:10px;padding:8px 16px;cursor:pointer}.btn:hover{border-color:var(--acc)}#pp{background:linear-gradient(90deg,#6ee7ff,#a066f5);color:#fff;border:0;font-weight:700}
+.stage{position:relative;min-height:180px;display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;padding:18px 14px 40px;border:1px solid var(--line);border-radius:16px;background:rgba(4,6,16,.7);margin-bottom:12px;font-size:34px}
+.prog{position:absolute;left:14px;right:14px;bottom:14px;height:6px;border-radius:9px;background:rgba(255,255,255,.1)}.prog i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#6ee7ff,#a066f5);box-shadow:0 0 12px rgba(94,231,255,.6)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin:12px 0}.stats div{border:1px solid var(--line);border-radius:12px;padding:9px 13px;font-size:12px;color:var(--mut);background:rgba(160,102,245,.07)}.stats b{display:block;font:600 20px var(--mono);color:var(--acc)}
+ol.steps{margin:8px 0 0;padding:0;list-style:none;max-height:210px;overflow:auto;font:14px var(--mono);-webkit-mask-image:linear-gradient(#000 78%,transparent);mask-image:linear-gradient(#000 78%,transparent)}
+ol.steps button{all:unset;cursor:pointer;display:flex;justify-content:space-between;width:100%;padding:6px 10px;border-radius:8px;box-sizing:border-box}ol.steps .ic{color:var(--mut)}ol.steps button:focus-visible{outline:2px solid var(--acc)}ol.steps .on{background:var(--hi);color:#fff;box-shadow:inset 2px 0 0 var(--acc)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font:14px var(--mono)}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--mut);font-weight:500}tr.best td{background:rgba(160,102,245,.2)}
+.ok{color:var(--acc);font-weight:600}.no{color:var(--bad)}.mut{color:var(--mut)}#why,#rec{color:#b7c1d8}
+.jug{text-align:center;font:13px var(--mono)}.jw{width:64px;border:3px solid #c6b6ff;border-top:0;border-radius:0 0 12px 12px;display:flex;align-items:flex-end;margin:0 auto 4px}.jw i{display:block;width:100%;background:linear-gradient(#5ee7ff,#a066f5)}
+.bank{min-width:90px;min-height:80px;padding:10px;border-radius:14px;background:rgba(160,102,245,.1);border:1px solid var(--line);text-align:center;letter-spacing:3px}.river{flex:1;min-width:70px;display:flex;border-bottom:3px double var(--acc)}
+.stk{display:flex;flex-direction:column;justify-content:flex-end}.blk,.sq div{border:1.5px solid rgba(94,231,255,.6);background:rgba(160,102,245,.22);border-radius:8px;display:grid;place-items:center;font:700 16px var(--mono)}.blk{width:46px;height:38px}.sq{display:grid;gap:5px}.sq div{width:46px;height:46px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin:2px;font:13px var(--mono)}
+@media(prefers-reduced-motion:no-preference){.jw i{transition:height .4s}.prog i{transition:width .3s}}
+</style></head><body><div class="floor"></div><canvas id="bg"></canvas><canvas id="fx"></canvas><div id="orb" aria-hidden="true"></div><header class="top"><div class="brand"><div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#5ee7ff" stroke-width="1.8"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" fill="#5ee7ff" stroke="none"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></div><div><div><span class="bt">STATE-SPACE</span><span class="lab">LAB</span></div><div class="bs">Generic Search Engine &amp; Visualizer</div></div></div><nav id="tabs" aria-label="Puzzles"></nav><div class="stat" id="stat"><i></i><span id="stxt">READY</span></div></header>
+<div class="wrap"><section class="hero"><div class="pill">NEXT-GEN AI ALGORITHM EXPLORATION</div><h1><span class="l1">One Engine<i class="d">.</i></span><span class="l2">Six Classic Puzzles<i class="d">.</i></span></h1><p>Unifying classic AI problem-solving into 5 standard components: <b>States</b>, <b>Initial State</b>, <b>Goal Test</b>, <b>Successors</b>, and <b>Path Cost</b>.</p></section>
+<section class="panel"><div><h2><span class="ic2">⚙</span>Setup &amp; Execute</h2><p class="desc" id="desc"></p><div class="lbl">Search Algorithm</div>
+<select id="algo" aria-label="Search algorithm"><option value="bfs">Breadth-First Search (BFS) - Complete &amp; Optimal</option><option value="dfs">Depth-First Search (DFS) - Low Memory</option><option value="iddfs">Iterative Deepening (IDDFS) - Complete, Low Memory</option><option value="ucs">Uniform-Cost Search (UCS) - Optimal</option><option value="greedy">Greedy Best-First - Fast, Not Optimal</option><option value="astar">A* Search - Optimal with Heuristic</option></select>
+<div class="pbox"><div class="ph"><span>Puzzle Parameters:</span><b class="badge" id="pbadge">Standard Rules</b></div><div class="row" id="params" style="margin:0"></div></div>
+<button class="go" id="go">▶ SOLVE &amp; EXPLORE STATE SPACE</button></div>
+<aside class="fd"><div class="fh"><span><em>&lt;/&gt;</em>FORMAL DEFINITION</span><b id="mname"></b></div><div id="def"></div></aside></section>
+<section class="card" id="solcard" style="scroll-margin-top:96px"><h2>Solution</h2><div id="sol"></div></section>
+<section class="card"><h2>Algorithm Comparison</h2><div class="tw" id="cmp"></div><p id="rec"></p></section>
+<section class="card"><h2>State-Space Structure</h2><div class="stats" id="met"></div><p id="why"></p><h2 style="margin-top:24px">Choosing an Algorithm</h2><div class="tw"><table id="prof"></table></div></section></div>
+<script>
+const $=s=>document.querySelector(s),Lt=n=>String.fromCharCode(65+n),fmt=n=>n.toLocaleString();
+/* ---------- problem definitions (state-space framework) ---------- */
+const PROBS={
+jug:{name:'Water Jug',params:[{k:'a',l:'Jug A',v:4,min:1,max:12},{k:'b',l:'Jug B',v:3,min:1,max:12},{k:'t',l:'Target',v:2,min:1,max:12}],
+def:['(x, y): litres in jug A and jug B','(0, 0)','x = target or y = target','Fill A or B, empty A or B, pour A into B, pour B into A','1 per action'],
+why:'Small graph full of cycles with unit costs, so BFS returns the fewest moves and memory is trivial. A closed set is essential: without it DFS loops forever. It is solvable only when the target is a multiple of gcd(A, B) and fits in a jug; otherwise the engine exhausts the space and reports no solution.',
+prof:['up to 6','(A+1)(B+1)','shallow','many','weak (0 or 1)','BFS or A*'],
+build({a,b,t}){return{init:[0,0],key:s=>s.join(),goal:s=>s[0]==t||s[1]==t,raw:fmt((a+1)*(b+1)),
+succ([x,y]){const pa=Math.min(x,b-y),pb=Math.min(y,a-x);return[['Fill A',[a,y]],['Fill B',[x,b]],['Empty A',[0,y]],['Empty B',[x,0]],['Pour A into B',[x-pa,y+pa]],['Pour B into A',[x+pb,y-pb]]].filter(([,n])=>n[0]!=x||n[1]!=y).map(([q,n])=>({a:q,s:n,c:1}))},
+h:s=>s[0]==t||s[1]==t?0:1,
+render:s=>[[s[0],a,'A'],[s[1],b,'B']].map(([v,m,n])=>`<div class="jug"><div class="jw" style="height:${m*15}px"><i style="height:${v/m*100}%"></i></div><b>${n}: ${v}/${m}</b></div>`).join('')}}},
+mc:{name:'Missionaries and Cannibals',params:[{k:'n',l:'Each kind',v:3,min:1,max:7},{k:'k',l:'Boat seats',v:2,min:2,max:4}],
+def:['(M, C, boat): missionaries and cannibals on the left bank, and the boat side','(N, N, left)','no one left on the left bank','Carry 1 to k people across if no bank has missionaries outnumbered','1 per crossing'],
+why:'Illegal states are rejected inside the successor function, so the reachable space is tiny and close to a single corridor. Branching is about 2 and every algorithm succeeds; BFS gives the shortest crossing plan and A* adds little.',
+prof:['about 2 to 4','at most 2(N+1)²','shallow','yes','ceil(people / seats)','BFS or A*'],
+build({n,k}){const ok=(m,c)=>m>=0&&c>=0&&m<=n&&c<=n&&(m==0||m>=c)&&(n==m||n-m>=n-c);
+return{init:[n,n,0],key:s=>s.join(),goal:s=>!s[0]&&!s[1],raw:fmt(2*(n+1)**2),
+succ([m,c,b]){const r=[],sg=b?1:-1;for(let dm=0;dm<=k;dm++)for(let dc=0;dm+dc<=k;dc++)if(dm+dc>0&&ok(m+sg*dm,c+sg*dc))r.push({a:`${dm}M ${dc}C cross ${b?'back':'over'}`,s:[m+sg*dm,c+sg*dc,1-b],c:1});return r},
+h:([m,c])=>Math.ceil((m+c)/k),
+render:([m,c,b])=>{const bk=(M,C)=>`<div class="bank"><span style="color:var(--acc)">${'●'.repeat(M)}</span><br><span class="no">${'▲'.repeat(C)}</span></div>`;return bk(m,c)+`<div class="river"><span style="${b?'margin-left:auto':''}">⛵</span></div>`+bk(n-m,n-c)}}}},
+fwgc:{name:'Farmer, Wolf, Goat, Cabbage',params:[],
+def:['(F, W, G, C): bank 0 or 1 for each','(0, 0, 0, 0)','all four on bank 1','Farmer crosses alone or with one item from his bank; unsafe states are rejected','1 per crossing'],
+why:'Only 16 raw states and 10 safe ones, with branching of at most 4 and a 7-move solution. Any algorithm solves it instantly, which makes it a clean demonstration of putting validity checks in the successor function.',
+prof:['at most 4','16 (10 safe)','7','yes','items left behind','any; BFS'],
+build(){const N=['Wolf','Goat','Cabbage'],E=['🧑‍🌾','🐺','🐐','🥬'],safe=s=>!(s[1]==s[2]&&s[0]!=s[1])&&!(s[2]==s[3]&&s[0]!=s[2]);
+return{init:[0,0,0,0],key:s=>s.join(''),goal:s=>s.every(v=>v),raw:'16',
+succ(s){const r=[],f=s[0];for(let i=0;i<4;i++)if(i==0||s[i]==f){const n=[...s];n[0]=1-f;if(i)n[i]=1-f;if(safe(n))r.push({a:(i?'Take '+N[i-1]:'Farmer alone')+(f?' back':' over'),s:n,c:1})}return r},
+h:s=>s.slice(1).filter(v=>!v).length,
+render:s=>[0,1].map(v=>`<div class="bank" style="min-width:110px">${s.map((x,i)=>x==v?E[i]:'').join(' ')||'&nbsp;'}</div>`).join('<div class="river"></div>')}}},
+blocks:{name:'Block World',params:[{k:'n',l:'Blocks',v:4,min:3,max:7}],
+def:['set of stacks (position on the table is ignored)','one tower in reverse order','tower A, B, C… with A at the bottom','Move a top block to the table or onto another stack','1 per move'],
+why:'Branching grows roughly with n² and the space grows factorially, but misplaced blocks is an admissible and informative heuristic. A* expands far fewer nodes than BFS; greedy is faster still but can return longer plans.',
+prof:['about n²','501 states at n = 5','about 2n','yes','good (misplaced blocks)','A*'],
+build({n}){const G=[...Array(n)].map((_,i)=>Lt(i)),gk=G.join(''),key=s=>s.map(x=>x.join('')).join('|'),norm=s=>s.filter(x=>x.length).sort((p,q)=>p.join('').localeCompare(q.join('')));
+return{init:norm([[...G].reverse()]),key,goal:s=>key(s)==gk,raw:'Σ Lah numbers',
+succ(s){const r=[];s.forEach((st,i)=>{const b=st.at(-1),base=s.map((x,j)=>j==i?x.slice(0,-1):[...x]);
+if(st.length>1)r.push({a:`Move ${b} to table`,s:norm([...base.map(x=>[...x]),[b]]),c:1});
+s.forEach((o,j)=>{if(j!=i){const t=base.map(x=>[...x]);t[j].push(b);r.push({a:`Move ${b} onto ${o.at(-1)}`,s:norm(t),c:1})}})});return r},
+h:s=>{let w=0;s.forEach(st=>{let ok=true;st.forEach((b,i)=>{if(!(ok&&G[i]==b)){ok=false;w++}})});return w},
+render:s=>s.map(st=>`<div class="stk">${[...st].reverse().map(b=>`<div class="blk">${b}</div>`).join('')}</div>`).join('')}}},
+crypt:{name:'Cryptarithmetic',params:[{k:'puz',l:'Puzzle',v:'SEND+MORE=MONEY',o:['SEND+MORE=MONEY','TWO+TWO=FOUR','EAT+THAT=APPLE']}],
+def:['partial digit assignment to letters, in column order','empty assignment','every letter assigned and the sum holds','Give the next letter an unused digit; reject any column that already fails','1 per assignment'],
+why:'All solutions sit at the same depth (the number of letters) and there are no cycles, so this is really constraint satisfaction. DFS with column pruning needs almost no memory, while BFS must hold a very wide frontier. Path cost is irrelevant, so UCS and A* only add overhead.',
+prof:['up to 10, shrinking','10!/(10−k)!','= letters','no','unassigned letters','DFS with pruning'],
+build({puz}){const [lhs,R]=puz.split('='),W=lhs.split('+'),Lc=R.length,col=(w,i)=>w[w.length-1-i],order=[],lead=new Set([...W,R].map(w=>w[0]));
+for(let i=0;i<Lc;i++)[...W,R].forEach(w=>{const c=col(w,i);if(c&&!order.includes(c))order.push(c)});
+const mp=a=>{const m={};a.forEach((d,i)=>m[order[i]]=d);return m},
+ok=a=>{const m=mp(a);let cr=0;for(let i=0;i<Lc;i++){let s=cr;for(const w of W){const c=col(w,i);if(c){if(!(c in m))return true;s+=m[c]}}const rc=col(R,i);if(!(rc in m))return true;if(s%10!=m[rc])return false;cr=s>9?1:0}return cr==0};
+let raw=1;for(let i=0;i<order.length;i++)raw*=10-i;
+return{init:[],key:a=>a.join(''),goal:a=>a.length==order.length,raw:fmt(raw),
+succ(a){const r=[],u=new Set(a);for(let d=0;d<10;d++){if(u.has(d)||(!d&&lead.has(order[a.length])))continue;const n=[...a,d];if(ok(n))r.push({a:`${order[a.length]} = ${d}`,s:n,c:1})}return r},
+h:a=>order.length-a.length,
+render:a=>{const m=mp(a),sb=w=>[...w].map(c=>c in m?m[c]:c).join('');return`<div style="text-align:center"><div style="font:700 28px 'Bricolage Grotesque'">${W.map(sb).join(' + ')} = ${sb(R)}</div><div>${order.map(c=>`<span class="chip">${c}=${c in m?m[c]:'?'}</span>`).join('')}</div></div>`}}}},
+magic:{name:'Magic Square',params:[{k:'n',l:'Size',v:3,o:[3,4]}],
+def:['numbers placed so far, filling cells row by row','empty grid','grid full and every row, column and diagonal sums to n(n²+1)/2','Put an unused number in the next cell; reject any completed line with the wrong sum','1 per placement'],
+why:'Like cryptarithmetic, every solution lies at depth n² with no cycles, so it behaves as a constraint problem. Pruning completed lines lets DFS find a square quickly; BFS explodes combinatorially and iterative deepening wastes work re-walking shallow levels.',
+prof:['up to n², shrinking','(n²)!','= n² cells','no','empty cells','DFS with pruning'],
+build({n}){const N=n*n,M=n*(N+1)/2,rg=[...Array(n).keys()],ln=[];rg.forEach(i=>{ln.push(rg.map(j=>i*n+j));ln.push(rg.map(j=>j*n+i))});ln.push(rg.map(i=>i*n+i));ln.push(rg.map(i=>i*n+n-1-i));
+const ok=a=>ln.every(l=>Math.max(...l)!=a.length-1||l.reduce((s,i)=>s+a[i],0)==M);let f=1;for(let i=2;i<=N;i++)f*=i;
+return{init:[],key:a=>a.join(),goal:a=>a.length==N,raw:fmt(f),
+succ(a){const r=[];for(let v=1;v<=N;v++)if(!a.includes(v)){const s=[...a,v];if(ok(s))r.push({a:`Row ${Math.floor(a.length/n)+1}, col ${a.length%n+1} = ${v}`,s,c:1})}return r},
+h:a=>N-a.length,
+render:a=>`<div class="sq" style="grid-template-columns:repeat(${n},44px)">${[...Array(N)].map((_,i)=>`<div>${a[i]??''}</div>`).join('')}</div><div class="mut" style="font-size:14px">line sum ${M}</div>`}}}};
+/* ---------- generic search engine ---------- */
+const lt=(x,y)=>x[0]<y[0]||(x[0]==y[0]&&x[1]<y[1]);
+class Heap{constructor(){this.a=[]}get size(){return this.a.length}
+push(x){const a=this.a;a.push(x);let i=a.length-1;while(i){const p=(i-1)>>1;if(lt(a[p],a[i]))break;[a[p],a[i]]=[a[i],a[p]];i=p}}
+pop(){const a=this.a,t=a[0],l=a.pop();if(a.length){a[0]=l;let i=0;for(;;){let c=2*i+1;if(c>=a.length)break;if(c+1<a.length&&lt(a[c+1],a[c]))c++;if(lt(a[i],a[c]))break;[a[i],a[c]]=[a[c],a[i]];i=c}}return t}}
+function solve(P,algo,lim=200000){const t0=performance.now();let gen=1,exp=0,mf=1;const r0={s:P.init,p:null,a:null,g:0,d:0};
+const fin=(n,fail)=>{const path=[];for(let x=n;x;x=x.p)path.unshift(x);return{algo,found:!!n,fail,path,cost:n?n.g:null,depth:n?n.d:null,exp,gen,mf,ms:performance.now()-t0}};
+if(algo=='iddfs'){const on=new Set(),dls=(n,L)=>{if(++exp>lim)throw 0;if(P.goal(n.s))return n;if(n.d>=L)return null;const k=P.key(n.s);on.add(k);for(const x of P.succ(n.s)){gen++;if(on.has(P.key(x.s)))continue;const r=dls({s:x.s,p:n,a:x.a,g:n.g+x.c,d:n.d+1},L);if(r)return r}on.delete(k);return null};
+try{for(let L=0;L<200;L++){on.clear();const r=dls(r0,L);if(r)return fin(r)}}catch(e){return fin(null,'limit')}return fin(null,'exhausted')}
+const ro=algo=='ucs'||algo=='astar',pr=(n,q)=>algo=='bfs'?q:algo=='dfs'?-q:algo=='ucs'?n.g:algo=='greedy'?P.h(n.s):n.g+P.h(n.s);
+const hp=new Heap(),cl=new Map();let sq=0;hp.push([pr(r0,sq),sq++,r0]);const seen=(k,g)=>cl.has(k)&&(!ro||cl.get(k)<=g);
+while(hp.size){mf=Math.max(mf,hp.size);const n=hp.pop()[2],k=P.key(n.s);if(seen(k,n.g))continue;cl.set(k,n.g);if(P.goal(n.s))return fin(n);if(++exp>lim)return fin(null,'limit');
+let ss=P.succ(n.s);if(algo=='dfs')ss=ss.reverse();for(const x of ss){gen++;const g=n.g+x.c;if(seen(P.key(x.s),g))continue;const c={s:x.s,p:n,a:x.a,g,d:n.d+1};hp.push([pr(c,sq),sq++,c])}}
+return fin(null,'exhausted')}
+function enumerate(P,cap=300000){const seen=new Set([P.key(P.init)]),q=[P.init],dq=[0];let i=0,edges=0,nl=0,mx=0,md=0,capped=false;
+while(i<q.length){const s=q[i],d=dq[i++],ss=P.succ(s);md=Math.max(md,d);if(ss.length)nl++;mx=Math.max(mx,ss.length);edges+=ss.length;for(const x of ss){const k=P.key(x.s);if(!seen.has(k)){if(seen.size>=cap){capped=true;continue}seen.add(k);q.push(x.s);dq.push(d+1)}}}
+return{states:seen.size,b:nl?edges/nl:0,mx,md,capped}}
+const ebf=(N,d)=>{if(!d)return 1;let lo=1,hi=Math.max(N,2);for(let i=0;i<60;i++){const b=(lo+hi)/2;((Math.pow(b,d+1)-1)/(b-1))<N?lo=b:hi=b}return lo};
+/* ---------- UI ---------- */
+const ALGOS=[['bfs','Breadth-first'],['dfs','Depth-first'],['iddfs','Iterative deepening'],['ucs','Uniform-cost'],['greedy','Greedy best-first'],['astar','A*']];
+let cur='fwgc',vals={},P,res,step=0,tm,pl;
+const ORDER=['fwgc','jug','mc','blocks','crypt','magic'],NM={fwgc:'Farmer, Wolf, Goat & Cabbage',mc:'Missionaries & Cannibals'},DESC={fwgc:'Safely move the Farmer, Wolf, Goat, and Cabbage across the river. Goat cannot be left with Wolf or Cabbage alone.',jug:'Measure the target volume using two jugs of fixed capacity. Fill, empty or pour until one jug holds exactly the target.',mc:'Carry every missionary and cannibal across the river. Cannibals may never outnumber missionaries on either bank.',blocks:'Rearrange a reversed tower of blocks into alphabetical order, moving one top block at a time.',crypt:'Replace each letter with a unique digit so the sum is correct. Leading letters cannot be zero.',magic:'Fill the grid with unique numbers so every row, column and diagonal adds up to the same magic sum.'},MODEL={fwgc:'River Crossing State Model',mc:'River Crossing State Model',jug:'Volume Transfer State Model',blocks:'Stack Configuration State Model',crypt:'Constraint Assignment State Model',magic:'Grid Placement State Model'};
+function tabs(){$('#tabs').innerHTML=ORDER.map(k=>`<button data-k="${k}" class="${k==cur?'on':''}">${NM[k]||PROBS[k].name}</button>`).join('')}
+function setup(){const p=PROBS[cur];vals={};$('#params').innerHTML=p.params.map(x=>{vals[x.k]=x.v;return`<label>${x.l}${x.o?`<select data-k="${x.k}">${x.o.map(o=>`<option ${o==x.v?'selected':''}>${o}</option>`).join('')}</select>`:`<input type="number" data-k="${x.k}" value="${x.v}" min="${x.min}" max="${x.max}">`}</label>`}).join('')||'<span class="mut">Default puzzle configuration: standard constraints active.</span>';
+$('#def').innerHTML=['State Space','Initial State','Goal Test','Successors','Path Cost'].map((t,i)=>`<div class="de"><h4>&gt; ${t}</h4><p>${p.def[i]}</p></div>`).join('');
+$('#why').textContent=p.why;$('#desc').textContent=DESC[cur];$('#mname').textContent=MODEL[cur];$('#pbadge').textContent=p.params.length?'Custom Rules':'Standard Rules';tabs();recompute()}
+function recompute(){clearInterval(pl);P=PROBS[cur].build(vals);res=solve(P,$('#algo').value);step=0;show();$('#cmp').innerHTML='<p class="mut">Running all six algorithms…</p>';$('#rec').textContent='';clearTimeout(tm);tm=setTimeout(analyse,40)}
+function show(){const el=$('#sol'),r=res;$('#stat').className='stat '+(r.found?'':r.fail=='limit'?'warn':'bad');$('#stxt').textContent=r.found?'SOLVED & SYNCED':r.fail=='limit'?'CAP REACHED':'NO SOLUTION';const st=`<div class="stats"><div><b>${r.found?r.cost:'—'}</b>path cost</div><div><b>${fmt(r.exp)}</b>expanded</div><div><b>${fmt(r.gen)}</b>generated</div><div><b>${fmt(r.mf)}</b>peak frontier</div><div><b>${r.ms.toFixed(1)}</b>ms</div></div>`;
+if(!r.found){el.innerHTML=`<div class="stage no" style="font-size:16px;text-align:center">${r.fail=='limit'?'Stopped at the 200,000-expansion cap. Try a different algorithm or a smaller instance.':'No solution. The search exhausted every reachable state.'}</div>`+st;return}
+const n=r.path.length;el.innerHTML=`<div class="stage" id="stg">${P.render(r.path[step].s)}<div class="prog"><i style="width:${n>1?step/(n-1)*100:100}%"></i></div></div><div class="row"><button class="btn" id="pv">Back</button><button class="btn" id="nx">Next</button><button class="btn" id="pp">Play</button><span class="mut">Step ${step} of ${n-1}</span></div>`+st+`<ol class="steps">${r.path.map((x,i)=>`<li><button data-i="${i}" class="${i==step?'on':''}"><span>${i}. ${x.a||'Initial state'}</span><span class="ic">${i?/back/.test(x.a)?'⇠':'⇢':'⌂'}</span></button></li>`).join('')}</ol>`}
+function analyse(){const rs=ALGOS.map(([a])=>solve(P,a,100000)),f=rs.filter(r=>r.found),mc=f.length?Math.min(...f.map(r=>r.cost)):null,opt=f.filter(r=>r.cost==mc),best=opt.length?opt.reduce((a,b)=>b.exp<a.exp?b:a):null;
+$('#cmp').innerHTML=`<table><tr><th>Algorithm</th><th>Outcome</th><th>Cost</th><th>Expanded</th><th>Generated</th><th>Peak frontier</th><th>ms</th></tr>`+rs.map((r,i)=>`<tr class="${r==best?'best':''}"><td>${ALGOS[i][1]}</td><td class="${r.found?'ok':'no'}">${r.found?(r.cost==mc?'optimal':'suboptimal'):r.fail=='limit'?'gave up (cap)':'no solution'}</td><td>${r.found?r.cost:'—'}</td><td>${fmt(r.exp)}</td><td>${fmt(r.gen)}</td><td>${fmt(r.mf)}</td><td>${r.ms.toFixed(1)}</td></tr>`).join('')+'</table>';
+$('#rec').innerHTML=best?`Cheapest optimal run here: <b>${ALGOS[rs.indexOf(best)][1]}</b> with ${fmt(best.exp)} expansions. Caps are set at 100,000 expansions per algorithm.`:'No algorithm solved this instance within the cap.';
+const E=enumerate(P),b=rs[0],m=[[(E.capped?'at least ':'')+fmt(E.states),'reachable states'],[P.raw,'raw size'],[E.b.toFixed(2),'average branching'],[E.mx,'maximum branching'],[E.md,'deepest level'],[b.found?b.depth:'—','solution depth d'],[b.found?ebf(b.gen,b.depth).toFixed(2):'—','effective b* (BFS)']];
+$('#met').innerHTML=m.map(([v,l])=>`<div><b>${v}</b>${l}</div>`).join('')}
+$('#prof').innerHTML='<tr><th>Problem</th><th>Branching</th><th>Raw space</th><th>Depth</th><th>Cycles</th><th>Heuristic</th><th>Best fit</th></tr>'+Object.values(PROBS).map(p=>`<tr><td>${p.name}</td>${p.prof.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('');
+document.addEventListener('click',e=>{const t=e.target;if(t.dataset.k&&t.closest('#tabs')){cur=t.dataset.k;setup()}else if(t.id=='go'){recompute();$('#solcard').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'});if(res.found&&$('#pp'))$('#pp').click()}
+else if(t.dataset.i){step=+t.dataset.i;show()}else if(t.id=='nx'){step=Math.min(step+1,res.path.length-1);show()}else if(t.id=='pv'){step=Math.max(step-1,0);show()}
+else if(t.id=='pp'){clearInterval(pl);step=0;show();pl=setInterval(()=>{if(step>=res.path.length-1)return clearInterval(pl);step++;show()},800)}});
+document.addEventListener('change',e=>{const t=e.target;if(t.closest('#params')){const x=PROBS[cur].params.find(p=>p.k==t.dataset.k);vals[x.k]=typeof x.v=='number'?Math.max(x.min??0,Math.min(x.max??99,+t.value)):t.value;if(x.min!=null)t.value=vals[x.k];recompute()}else if(t.id=='algo')recompute()});
+setup();
+</script><script>
+(()=>{const RM=matchMedia('(prefers-reduced-motion:reduce)').matches,$=s=>document.querySelector(s),R=Math.random;
+const c=$('#bg'),g=c.getContext('2d');let W,H,mx=0,my=0,ox=-100,oy=-100,cx=-100,cy=-100;const orb=$('#orb');
+const COL=['255,77,141','94,231,255','160,102,245','255,107,181'],sq=[...Array(46)].map(()=>({x:R(),y:R(),s:2+R()*4,v:.00002+R()*.00006,c:COL[R()*4|0],a:.4+R()*.5}));
+const sph=n=>{const p=[...Array(n)].map(()=>{const a=R()*6.283,z=R()*2-1,r=Math.sqrt(1-z*z);return[r*Math.cos(a),r*Math.sin(a),z]}),e=new Set;p.forEach((a,i)=>p.map((b,j)=>[j,Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2])]).filter(x=>x[0]!=i).sort((u,v)=>u[1]-v[1]).slice(0,3).forEach(([j])=>e.add(i<j?i+','+j:j+','+i)));return{p,e:[...e].map(k=>k.split(',').map(Number))}};
+const SH=[[.14,.2,.09,'94,231,255'],[.7,.1,.05,'160,102,245'],[.06,.62,.05,'160,102,245'],[.03,.74,.04,'94,231,255'],[.94,.5,.03,'160,102,245'],[.28,.5,.03,'160,102,245']].map(([x,y,r,c],i)=>({x,y,r,c,...sph(i?8:9),k:.5+R()})),
+CH=[[.65,0,'110,60,190'],[.2,.95,'45,130,150'],[.85,.4,'45,130,150']].map(([x,y,c])=>({x,y,c,r:R()*6}));
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight}
+function draw(t){g.clearRect(0,0,W,H);const dx=mx*20,dy=my*20;
+sq.forEach(p=>{p.y=(p.y-p.v*16+1)%1;g.fillStyle=`rgba(${p.c},${p.a})`;g.fillRect(p.x*W+dx*p.s*.1,p.y*H,p.s,p.s)});
+g.lineWidth=1;SH.forEach(h=>{const a=t*.0002*h.k,b=t*.00013*h.k,ca=Math.cos(a),sa=Math.sin(a),cb=Math.cos(b),sb=Math.sin(b),r0=h.r*Math.min(W,H)*1.6,x0=h.x*W+dx,y0=h.y*H+dy,q=h.p.map(([x,y,z])=>{const X=x*ca+z*sa,Z=-x*sa+z*ca,Y=y*cb-Z*sb;return[x0+X*r0,y0+Y*r0]});
+g.strokeStyle=`rgba(${h.c},.6)`;g.beginPath();h.e.forEach(([i,j])=>{g.moveTo(q[i][0],q[i][1]);g.lineTo(q[j][0],q[j][1])});g.stroke();g.fillStyle=`rgba(${h.c},.9)`;q.forEach(v=>g.fillRect(v[0]-1.5,v[1]-1.5,3,3))});
+CH.forEach(h=>{const r=h.r+t*.0002,x0=h.x*W,y0=h.y*H+Math.sin(t*.0004+h.r)*14,s=Math.min(W,H)*.075;g.fillStyle=`rgba(${h.c},.7)`;g.beginPath();for(let i=0;i<5;i++){const a=r+i*1.26,d=s*(.8+.25*Math.sin(i*2.1+h.r));g[i?'lineTo':'moveTo'](x0+Math.cos(a)*d,y0+Math.sin(a)*d)}g.fill()})}
+rs();addEventListener('resize',()=>{rs();RM&&draw(0)});
+addEventListener('pointermove',e=>{mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5;ox=e.clientX;oy=e.clientY;orb.classList.add('on')});document.addEventListener('mouseleave',()=>orb.classList.remove('on'));
+let last=0;RM?draw(0):(function L(n){requestAnimationFrame(L);if(document.hidden||n-last<33)return;last=n;draw(n)})(0);
+(function O(){cx+=(ox-cx)*(RM?1:.18);cy+=(oy-cy)*(RM?1:.18);orb.style.transform=`translate(${cx}px,${cy}px)`;requestAnimationFrame(O)})();
+const f=$('#fx'),x=f.getContext('2d'),ps=[];let run=0;
+function fr(){const d=Math.min(devicePixelRatio||1,2);f.width=innerWidth*d;f.height=innerHeight*d;x.setTransform(d,0,0,d,0,0)}fr();addEventListener('resize',fr);
+function spawn(b,n){if(RM)return;const r=b.getBoundingClientRect();for(let i=0;i<n;i++)ps.push({x:r.left+R()*r.width,y:r.top+r.height*(.2+R()*.8),vx:(R()-.5)*1.8,vy:-R()*1.4-.2,l:1,d:.012+R()*.014,s:10+R()*26,c:R()<.4?'94,231,255':'150,50,255'});if(!run){run=1;requestAnimationFrame(pf)}}
+function pf(){x.clearRect(0,0,innerWidth,innerHeight);x.globalCompositeOperation='lighter';for(let i=ps.length-1;i>=0;i--){const p=ps[i];p.x+=p.vx;p.y+=p.vy;p.vy*=.99;p.l-=p.d;if(p.l<=0){ps.splice(i,1);continue}const s=p.s*(1.3-p.l*.4),gr=x.createRadialGradient(p.x,p.y,0,p.x,p.y,s);gr.addColorStop(0,`rgba(${p.c},${p.l*.55})`);gr.addColorStop(1,`rgba(${p.c},0)`);x.fillStyle=gr;x.beginPath();x.arc(p.x,p.y,s,0,7);x.fill()}ps.length?requestAnimationFrame(pf):(run=0,x.clearRect(0,0,innerWidth,innerHeight))}
+const T=$('#tabs');T.addEventListener('mouseover',e=>{const b=e.target.closest('button');if(b&&!b.contains(e.relatedTarget))spawn(b,12)});T.addEventListener('click',e=>{const b=e.target.closest('button');if(b)spawn(b,40)});
+})();
+</script>
+</body></html>
